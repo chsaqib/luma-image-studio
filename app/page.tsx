@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown, ChevronUp, Circle, Copy, Crop, Download, Eye, EyeOff,
   FlipHorizontal2, FlipVertical2, ImagePlus, Images, Layers3, Minimize2, MousePointer2,
-  FileDown, FileUp, FolderOpen, Link2, Plus, Redo2, RotateCcw, Save, Sparkles, Square,
-  Trash2, Type, Undo2, Unlink2, Upload, X, ZoomIn, ZoomOut,
+  FileDown, FileUp, FolderOpen, Link2, Plus, Redo2, RotateCcw, Save, SlidersHorizontal,
+  Sparkles, Square, Trash2, Type, Undo2, Unlink2, Upload, X, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import Konva from 'konva';
 import { Image as KonvaImage, Layer, Rect, Stage, Text, Transformer } from 'react-konva';
@@ -412,10 +412,18 @@ export default function Home() {
     { key: 'blur' as const, label: 'Blur', min: 0, max: 30, step: 1, display: Math.round(selected.blur) },
   ] : [], [selected]);
 
+  const selectCanvasLayer = (id: string) => {
+    setProject({ ...project, selectedId: id });
+    if (window.matchMedia('(max-width: 900px)').matches) {
+      setPanelTab('adjust');
+      setMobilePanelOpen(true);
+    }
+  };
+
   const renderLayer = (item: EditorLayer) => {
-    if (item.type === 'image') return <ImageNode key={item.id} item={item} selected={project.selectedId === item.id} disabled={cropMode} onSelect={() => setProject({ ...project, selectedId: item.id })} onChange={(patch) => replaceLayer(item.id, patch)} />;
+    if (item.type === 'image') return <ImageNode key={item.id} item={item} selected={project.selectedId === item.id} disabled={cropMode} onSelect={() => selectCanvasLayer(item.id)} onChange={(patch) => replaceLayer(item.id, patch)} />;
     if (!item.visible) return null;
-    const shared = { id: item.id, x: item.x, y: item.y, width: item.width, height: item.height, rotation: item.rotation, scaleX: item.flipX ? -1 : 1, scaleY: item.flipY ? -1 : 1, offsetX: item.flipX ? item.width : 0, offsetY: item.flipY ? item.height : 0, draggable: true, onClick: () => setProject({ ...project, selectedId: item.id }), onTap: () => setProject({ ...project, selectedId: item.id }), onDragEnd: (event: Konva.KonvaEventObject<DragEvent>) => replaceLayer(item.id, { x: event.target.x(), y: event.target.y() }), onTransformEnd: (event: Konva.KonvaEventObject<Event>) => { const node = event.target; const scaleX = Math.abs(node.scaleX()); const scaleY = Math.abs(node.scaleY()); node.scaleX(item.flipX ? -1 : 1); node.scaleY(item.flipY ? -1 : 1); replaceLayer(item.id, { x: node.x(), y: node.y(), rotation: node.rotation(), width: Math.max(24, node.width() * scaleX), height: Math.max(24, node.height() * scaleY) }); } };
+    const shared = { id: item.id, x: item.x, y: item.y, width: item.width, height: item.height, rotation: item.rotation, scaleX: item.flipX ? -1 : 1, scaleY: item.flipY ? -1 : 1, offsetX: item.flipX ? item.width : 0, offsetY: item.flipY ? item.height : 0, draggable: true, onClick: () => selectCanvasLayer(item.id), onTap: () => selectCanvasLayer(item.id), onDragEnd: (event: Konva.KonvaEventObject<DragEvent>) => replaceLayer(item.id, { x: event.target.x(), y: event.target.y() }), onTransformEnd: (event: Konva.KonvaEventObject<Event>) => { const node = event.target; const scaleX = Math.abs(node.scaleX()); const scaleY = Math.abs(node.scaleY()); node.scaleX(item.flipX ? -1 : 1); node.scaleY(item.flipY ? -1 : 1); replaceLayer(item.id, { x: node.x(), y: node.y(), rotation: node.rotation(), width: Math.max(24, node.width() * scaleX), height: Math.max(24, node.height() * scaleY) }); } };
     if (item.type === 'text') return <Text key={item.id} {...shared} text={item.text} fill={item.fill} fontSize={item.fontSize} fontStyle="bold" verticalAlign="middle" align="center" onDblClick={() => { const value = window.prompt('Edit text', item.text); if (value !== null) replaceLayer(item.id, { text: value }); }} />;
     return <Rect key={item.id} {...shared} fill={item.fill} cornerRadius={item.shape === 'ellipse' ? Math.min(item.width, item.height) / 2 : 16} />;
   };
@@ -437,12 +445,13 @@ export default function Home() {
       <section className="workspace">
         <aside className="toolrail" aria-label="Editor tools">
           <button className="tool active" aria-label="Select tool"><MousePointer2 /><span>Select</span></button>
+          <button className="tool mobile-primary-tool" onClick={() => { setPanelTab('adjust'); setMobilePanelOpen(true); }} aria-label="Adjust selected layer"><SlidersHorizontal /><span>Adjust</span></button>
+          <button className="tool mobile-primary-tool" onClick={() => { setPanelTab('layers'); setMobilePanelOpen(true); }} aria-label="Show layers"><Layers3 /><span>Layers</span></button>
           <button className="tool" onClick={() => fileRef.current?.click()} aria-label="Add image"><ImagePlus /><span>Image</span></button>
           <button className="tool background-tool" onClick={() => backgroundFileRef.current?.click()} aria-label="Change background"><Images /><span>Background</span></button>
           <button className="tool" onClick={addText} aria-label="Add text"><Type /><span>Text</span></button>
           <button className="tool" onClick={() => addShape('rectangle')} aria-label="Add rectangle"><Square /><span>Shape</span></button>
           <button className="tool" onClick={() => addShape('ellipse')} aria-label="Add ellipse"><Circle /><span>Ellipse</span></button>
-          <button className="tool" onClick={() => { setPanelTab('layers'); setMobilePanelOpen(true); }} aria-label="Show layers"><Layers3 /><span>Layers</span></button>
           <div className="rail-spacer" /><div className="ai-pill"><Sparkles size={15} /><span>AI later</span></div>
         </aside>
         <section className={`canvas-area ${draggingOver ? 'is-dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDraggingOver(true); }} onDragLeave={() => setDraggingOver(false)} onDrop={(event) => { event.preventDefault(); setDraggingOver(false); void loadFiles(event.dataTransfer.files); }}>
@@ -468,6 +477,7 @@ export default function Home() {
           <input ref={fileRef} className="sr-only" type="file" multiple accept="image/*" onChange={(event) => { if (event.target.files) void loadFiles(event.target.files); event.target.value = ''; }} />
           <input ref={backgroundFileRef} className="sr-only" type="file" accept="image/*" onChange={(event) => { void loadBackground(event.target.files?.[0]); event.target.value = ''; }} />
           {cropMode && selected?.type === 'image' && <div className="crop-actions"><span>Drag the crop edges</span><button onClick={() => setCropMode(false)}>Cancel</button><button className="primary" onClick={() => applyCrop(selected)}>Apply crop</button></div>}
+          {selected && !cropMode && <button className="mobile-edit-fab" onClick={() => { setPanelTab('adjust'); setMobilePanelOpen(true); }}><SlidersHorizontal /> Edit selected layer</button>}
         </section>
         {mobilePanelOpen && <button className="mobile-backdrop" aria-label="Close properties" onClick={() => setMobilePanelOpen(false)} />}
         <aside className={`properties ${mobilePanelOpen ? 'mobile-open' : ''}`}>
